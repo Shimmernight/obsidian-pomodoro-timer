@@ -1,0 +1,30 @@
+# Dependency directories
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+# Build directories
+dist/
+build/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Obsidian specific
+.obsidian/
+.hotreload 

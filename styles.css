@@ -1,0 +1,30 @@
+/* 番茄钟状态栏项样式 */
+.pomodoro-statusbar-item {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 0 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.pomodoro-statusbar-item:hover {
+  background-color: var(--interactive-hover);
+}
+
+/* 添加动画效果，当番茄钟在运行时 */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.pomodoro-statusbar-item.running {
+  animation: pulse 2s infinite;
+} 

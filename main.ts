@@ -128,39 +128,44 @@ export default class PomodoroTimerPlugin extends Plugin {
 		try {
 			// 如果用户设置了自定义音乐路径
 			if (this.settings.customMusicPath) {
-				const normalizedPath = normalizePath(this.settings.customMusicPath);
-				// 检查文件是否存在
-				const file = this.app.vault.getAbstractFileByPath(normalizedPath);
+				// 构建音乐文件在插件目录中的完整路径
+				const pluginId = this.manifest.id;
+				const musicPath = normalizePath(`.obsidian/plugins/${pluginId}/${this.settings.customMusicPath}`);
 				
-				if (file && file instanceof TFile) {
-					// 获取文件的二进制数据
-					const fileData = await this.app.vault.readBinary(file);
-					// 创建 Blob 对象
-					const blob = new Blob([fileData], { type: this.getMimeType(normalizedPath) });
-					// 创建 URL 对象
+				// 使用adapter检查文件是否存在
+				const exists = await this.app.vault.adapter.exists(musicPath);
+				if (exists) {
+					// 读取二进制文件
+					const data = await this.app.vault.adapter.readBinary(musicPath);
+					// 创建blob URL
+					const blob = new Blob([data], { type: this.getMimeType(musicPath) });
 					const url = URL.createObjectURL(blob);
-					
 					this.audioPlayer.src = url;
+					
+					await this.audioPlayer.play();
 				} else {
-					// 如果文件不存在，使用内置音乐
-					this.audioPlayer.src = 'https://soundbible.com/grab.php?id=2197&type=mp3'; // 默认的舒缓音乐URL
-					new Notice("未找到自定义音乐文件，使用默认音乐");
+					// 文件不存在，提示用户
+					new Notice("未找到音乐文件，请在设置中选择音乐文件");
+					this.settings.playMusicDuringBreak = false;
+					await this.saveSettings();
 				}
 			} else {
-				// 使用默认音乐
-				this.audioPlayer.src = 'https://soundbible.com/grab.php?id=2197&type=mp3'; // 默认的舒缓音乐URL
+				// 没有设置音乐，提示用户
+				new Notice("未设置音乐文件，请在设置中选择音乐文件");
+				this.settings.playMusicDuringBreak = false;
+				await this.saveSettings();
 			}
-			
-			await this.audioPlayer.play();
 		} catch (error) {
 			console.error("播放音乐失败:", error);
 			new Notice("播放音乐失败，请检查音乐文件设置");
+			this.settings.playMusicDuringBreak = false;
+			await this.saveSettings();
 		}
 	}
 	
 	// 获取文件的MIME类型
 	getMimeType(filePath: string): string {
-		const ext = filePath.split('.').pop()?.toLowerCase();
+		const ext = filePath.split('.').pop()?.toLowerCase() || 'mp3';
 		switch (ext) {
 			case 'mp3': return 'audio/mpeg';
 			case 'wav': return 'audio/wav';
@@ -535,29 +540,32 @@ class PomodoroSettingTab extends PluginSettingTab {
 					}
 					
 					try {
-						// 文件保存路径
-						const fileName = file.name;
-						const filePath = `music/${fileName}`;
-						
-						// 确保音乐文件夹存在
-						if (!this.app.vault.getAbstractFileByPath('music')) {
-							await this.app.vault.createFolder('music');
-						}
-						
 						// 读取文件内容
 						const buffer = await file.arrayBuffer();
 						
-						// 保存到库中
+						// 获取插件ID
+						const pluginId = this.plugin.manifest.id;
+						
+						// 创建音乐文件夹路径
+						const musicDirPath = normalizePath(`.obsidian/plugins/${pluginId}/music`);
+						
+						// 确保音乐文件夹存在
+						if (!(await this.plugin.app.vault.adapter.exists(musicDirPath))) {
+							await this.plugin.app.vault.adapter.mkdir(musicDirPath);
+						}
+						
+						// 先尝试清理之前的音乐文件
+						await this.cleanupOldMusicFile();
+						
+						// 文件保存路径
+						const fileName = file.name;
+						const musicDirName = 'music';
+						const filePath = `${musicDirName}/${fileName}`;
+						const fullPath = normalizePath(`.obsidian/plugins/${pluginId}/${filePath}`);
+						
+						// 保存到文件系统
 						try {
-							// 检查文件是否已存在
-							const existingFile = this.app.vault.getAbstractFileByPath(filePath);
-							if (existingFile && existingFile instanceof TFile) {
-								// 若文件已存在，则覆盖
-								await this.app.vault.modifyBinary(existingFile, buffer);
-							} else {
-								// 若文件不存在，则创建
-								await this.app.vault.createBinary(filePath, buffer);
-							}
+							await this.plugin.app.vault.adapter.writeBinary(fullPath, buffer);
 							
 							// 更新设置
 							this.plugin.settings.customMusicPath = filePath;
@@ -566,17 +574,55 @@ class PomodoroSettingTab extends PluginSettingTab {
 							// 更新文本框显示
 							textComponent.setValue(filePath);
 							
-							new Notice(`音乐文件已保存至: ${filePath}`);
+							new Notice(`音乐文件已保存至插件目录: ${filePath}`);
 						} catch (err) {
 							console.error('保存音乐文件失败:', err);
 							new Notice('保存音乐文件失败');
 						}
 					} catch (err) {
-						console.error('读取音乐文件失败:', err);
-						new Notice('读取音乐文件失败');
+						console.error('读取或保存音乐文件失败:', err);
+						new Notice('读取或保存音乐文件失败');
 					}
 				}
 			};
 		});
+		
+		// 添加清空按钮
+		const clearBtnEl = containerEl.createEl('button', {
+			text: '清空',
+			cls: 'mod-warning'
+		});
+		
+		clearBtnEl.addEventListener('click', async () => {
+			// 清空当前设置的音乐
+			this.plugin.settings.customMusicPath = '';
+			await this.plugin.saveSettings();
+			textComponent.setValue('');
+			
+			// 清理音乐文件
+			await this.cleanupOldMusicFile();
+			
+			new Notice('已清空音乐设置');
+		});
+	}
+	
+	// 清理旧的音乐文件
+	private async cleanupOldMusicFile() {
+		try {
+			// 如果有之前的音乐文件设置
+			if (this.plugin.settings.customMusicPath) {
+				const pluginId = this.plugin.manifest.id;
+				const oldMusicPath = normalizePath(`.obsidian/plugins/${pluginId}/${this.plugin.settings.customMusicPath}`);
+				
+				// 检查文件是否存在
+				if (await this.plugin.app.vault.adapter.exists(oldMusicPath)) {
+					// 删除旧文件
+					await this.plugin.app.vault.adapter.remove(oldMusicPath);
+					console.log(`已删除旧的音乐文件: ${oldMusicPath}`);
+				}
+			}
+		} catch (err) {
+			console.error('清理旧音乐文件失败:', err);
+		}
 	}
 } 

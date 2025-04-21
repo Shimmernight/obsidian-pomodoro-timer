@@ -137,30 +137,36 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
         return;
       try {
         if (this.settings.customMusicPath) {
-          const normalizedPath = (0, import_obsidian.normalizePath)(this.settings.customMusicPath);
-          const file = this.app.vault.getAbstractFileByPath(normalizedPath);
-          if (file && file instanceof import_obsidian.TFile) {
-            const fileData = yield this.app.vault.readBinary(file);
-            const blob = new Blob([fileData], { type: this.getMimeType(normalizedPath) });
+          const pluginId = this.manifest.id;
+          const musicPath = (0, import_obsidian.normalizePath)(`.obsidian/plugins/${pluginId}/${this.settings.customMusicPath}`);
+          const exists = yield this.app.vault.adapter.exists(musicPath);
+          if (exists) {
+            const data = yield this.app.vault.adapter.readBinary(musicPath);
+            const blob = new Blob([data], { type: this.getMimeType(musicPath) });
             const url = URL.createObjectURL(blob);
             this.audioPlayer.src = url;
+            yield this.audioPlayer.play();
           } else {
-            this.audioPlayer.src = "https://soundbible.com/grab.php?id=2197&type=mp3";
-            new import_obsidian.Notice("\u672A\u627E\u5230\u81EA\u5B9A\u4E49\u97F3\u4E50\u6587\u4EF6\uFF0C\u4F7F\u7528\u9ED8\u8BA4\u97F3\u4E50");
+            new import_obsidian.Notice("\u672A\u627E\u5230\u97F3\u4E50\u6587\u4EF6\uFF0C\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u9009\u62E9\u97F3\u4E50\u6587\u4EF6");
+            this.settings.playMusicDuringBreak = false;
+            yield this.saveSettings();
           }
         } else {
-          this.audioPlayer.src = "https://soundbible.com/grab.php?id=2197&type=mp3";
+          new import_obsidian.Notice("\u672A\u8BBE\u7F6E\u97F3\u4E50\u6587\u4EF6\uFF0C\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u9009\u62E9\u97F3\u4E50\u6587\u4EF6");
+          this.settings.playMusicDuringBreak = false;
+          yield this.saveSettings();
         }
-        yield this.audioPlayer.play();
       } catch (error) {
         console.error("\u64AD\u653E\u97F3\u4E50\u5931\u8D25:", error);
         new import_obsidian.Notice("\u64AD\u653E\u97F3\u4E50\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u97F3\u4E50\u6587\u4EF6\u8BBE\u7F6E");
+        this.settings.playMusicDuringBreak = false;
+        yield this.saveSettings();
       }
     });
   }
   getMimeType(filePath) {
     var _a;
-    const ext = (_a = filePath.split(".").pop()) == null ? void 0 : _a.toLowerCase();
+    const ext = ((_a = filePath.split(".").pop()) == null ? void 0 : _a.toLowerCase()) || "mp3";
     switch (ext) {
       case "mp3":
         return "audio/mpeg";
@@ -410,33 +416,60 @@ var PomodoroSettingTab = class extends import_obsidian.PluginSettingTab {
             return;
           }
           try {
-            const fileName = file.name;
-            const filePath = `music/${fileName}`;
-            if (!this.app.vault.getAbstractFileByPath("music")) {
-              yield this.app.vault.createFolder("music");
-            }
             const buffer = yield file.arrayBuffer();
+            const pluginId = this.plugin.manifest.id;
+            const musicDirPath = (0, import_obsidian.normalizePath)(`.obsidian/plugins/${pluginId}/music`);
+            if (!(yield this.plugin.app.vault.adapter.exists(musicDirPath))) {
+              yield this.plugin.app.vault.adapter.mkdir(musicDirPath);
+            }
+            yield this.cleanupOldMusicFile();
+            const fileName = file.name;
+            const musicDirName = "music";
+            const filePath = `${musicDirName}/${fileName}`;
+            const fullPath = (0, import_obsidian.normalizePath)(`.obsidian/plugins/${pluginId}/${filePath}`);
             try {
-              const existingFile = this.app.vault.getAbstractFileByPath(filePath);
-              if (existingFile && existingFile instanceof import_obsidian.TFile) {
-                yield this.app.vault.modifyBinary(existingFile, buffer);
-              } else {
-                yield this.app.vault.createBinary(filePath, buffer);
-              }
+              yield this.plugin.app.vault.adapter.writeBinary(fullPath, buffer);
               this.plugin.settings.customMusicPath = filePath;
               yield this.plugin.saveSettings();
               textComponent.setValue(filePath);
-              new import_obsidian.Notice(`\u97F3\u4E50\u6587\u4EF6\u5DF2\u4FDD\u5B58\u81F3: ${filePath}`);
+              new import_obsidian.Notice(`\u97F3\u4E50\u6587\u4EF6\u5DF2\u4FDD\u5B58\u81F3\u63D2\u4EF6\u76EE\u5F55: ${filePath}`);
             } catch (err) {
               console.error("\u4FDD\u5B58\u97F3\u4E50\u6587\u4EF6\u5931\u8D25:", err);
               new import_obsidian.Notice("\u4FDD\u5B58\u97F3\u4E50\u6587\u4EF6\u5931\u8D25");
             }
           } catch (err) {
-            console.error("\u8BFB\u53D6\u97F3\u4E50\u6587\u4EF6\u5931\u8D25:", err);
-            new import_obsidian.Notice("\u8BFB\u53D6\u97F3\u4E50\u6587\u4EF6\u5931\u8D25");
+            console.error("\u8BFB\u53D6\u6216\u4FDD\u5B58\u97F3\u4E50\u6587\u4EF6\u5931\u8D25:", err);
+            new import_obsidian.Notice("\u8BFB\u53D6\u6216\u4FDD\u5B58\u97F3\u4E50\u6587\u4EF6\u5931\u8D25");
           }
         }
       });
+    });
+    const clearBtnEl = containerEl.createEl("button", {
+      text: "\u6E05\u7A7A",
+      cls: "mod-warning"
+    });
+    clearBtnEl.addEventListener("click", () => __async(this, null, function* () {
+      this.plugin.settings.customMusicPath = "";
+      yield this.plugin.saveSettings();
+      textComponent.setValue("");
+      yield this.cleanupOldMusicFile();
+      new import_obsidian.Notice("\u5DF2\u6E05\u7A7A\u97F3\u4E50\u8BBE\u7F6E");
+    }));
+  }
+  cleanupOldMusicFile() {
+    return __async(this, null, function* () {
+      try {
+        if (this.plugin.settings.customMusicPath) {
+          const pluginId = this.plugin.manifest.id;
+          const oldMusicPath = (0, import_obsidian.normalizePath)(`.obsidian/plugins/${pluginId}/${this.plugin.settings.customMusicPath}`);
+          if (yield this.plugin.app.vault.adapter.exists(oldMusicPath)) {
+            yield this.plugin.app.vault.adapter.remove(oldMusicPath);
+            console.log(`\u5DF2\u5220\u9664\u65E7\u7684\u97F3\u4E50\u6587\u4EF6: ${oldMusicPath}`);
+          }
+        }
+      } catch (err) {
+        console.error("\u6E05\u7406\u65E7\u97F3\u4E50\u6587\u4EF6\u5931\u8D25:", err);
+      }
     });
   }
 };

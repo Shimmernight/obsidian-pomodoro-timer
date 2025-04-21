@@ -210,6 +210,7 @@ export default class PomodoroTimerPlugin extends Plugin {
 				);
 				
 				this.isWorkMode = false;
+				this.isRunning = false;
 				
 				// 是否自动开始休息
 				if (this.settings.autoStartBreaks) {
@@ -222,7 +223,6 @@ export default class PomodoroTimerPlugin extends Plugin {
 					}
 					this.startPomodoro();
 				} else {
-					this.isRunning = false;
 					this.statusBarEl.removeClass('running');
 				}
 			} else {
@@ -236,6 +236,7 @@ export default class PomodoroTimerPlugin extends Plugin {
 				);
 				
 				this.isWorkMode = true;
+				this.isRunning = false;
 				
 				// 是否自动开始下一个番茄钟
 				if (this.settings.autoStartPomodoros) {
@@ -243,7 +244,6 @@ export default class PomodoroTimerPlugin extends Plugin {
 					this.startPomodoro();
 					new Notice(`开始新的番茄钟 (${this.settings.workDuration} 分钟)`);
 				} else {
-					this.isRunning = false;
 					this.statusBarEl.removeClass('running');
 				}
 			}

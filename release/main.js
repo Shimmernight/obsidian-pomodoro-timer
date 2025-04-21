@@ -210,6 +210,7 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
         new import_obsidian.Notice(`\u{1F345} \u756A\u8304\u949F\u5B8C\u6210\uFF01\u4F11\u606F\u4E00\u4E0B\u5427`);
         this.sendSystemNotification("\u756A\u8304\u949F\u5B8C\u6210", "\u5DE5\u4F5C\u65F6\u95F4\u7ED3\u675F\uFF0C\u73B0\u5728\u53EF\u4EE5\u4F11\u606F\u4E00\u4E0B\u4E86\uFF01");
         this.isWorkMode = false;
+        this.isRunning = false;
         if (this.settings.autoStartBreaks) {
           if (this.pomodoroCount % this.settings.longBreakInterval === 0) {
             this.timeLeft = this.settings.longBreakDuration * 60;
@@ -220,19 +221,18 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
           }
           this.startPomodoro();
         } else {
-          this.isRunning = false;
           this.statusBarEl.removeClass("running");
         }
       } else {
         new import_obsidian.Notice("\u4F11\u606F\u7ED3\u675F\uFF01");
         this.sendSystemNotification("\u4F11\u606F\u7ED3\u675F", "\u4F11\u606F\u65F6\u95F4\u7ED3\u675F\uFF0C\u51C6\u5907\u5F00\u59CB\u65B0\u7684\u5DE5\u4F5C\u5468\u671F\uFF01");
         this.isWorkMode = true;
+        this.isRunning = false;
         if (this.settings.autoStartPomodoros) {
           this.timeLeft = this.settings.workDuration * 60;
           this.startPomodoro();
           new import_obsidian.Notice(`\u5F00\u59CB\u65B0\u7684\u756A\u8304\u949F (${this.settings.workDuration} \u5206\u949F)`);
         } else {
-          this.isRunning = false;
           this.statusBarEl.removeClass("running");
         }
       }

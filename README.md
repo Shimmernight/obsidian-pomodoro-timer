@@ -19,6 +19,7 @@ A simple Pomodoro Timer plugin for Obsidian that helps you manage your time and 
 - Support for customizable long break intervals
 - Option to automatically start breaks and next Pomodoro sessions
 - System-level notifications that work even when Obsidian is not in focus
+- Relaxing music during break periods with support for custom music files
 
 ### Installation
 
@@ -53,6 +54,9 @@ A simple Pomodoro Timer plugin for Obsidian that helps you manage your time and 
 - **Auto Start Breaks**: Automatically start breaks after Pomodoro sessions
 - **Auto Start Pomodoros**: Automatically start new Pomodoro sessions after breaks
 - **Use System Notifications**: Receive system-level notifications even when Obsidian window is not in focus
+- **Play Music During Break**: Play relaxing music during break periods
+- **Music Volume**: Adjust the volume of break music
+- **Custom Music**: Select your own audio file from your vault to play during breaks (supports mp3, wav, ogg, m4a, flac formats)
 
 ### Commands
 
@@ -77,6 +81,7 @@ A simple Pomodoro Timer plugin for Obsidian that helps you manage your time and 
 - 支持自定义长休息间隔（每完成几个番茄钟后进行长休息）
 - 支持设置是否自动开始休息和下一个番茄钟
 - 支持系统级通知，即使 Obsidian 窗口不在前台也能收到提醒
+- 休息期间播放舒缓音乐，支持自定义本地音乐文件
 
 ### 安装方法
 
@@ -111,6 +116,9 @@ A simple Pomodoro Timer plugin for Obsidian that helps you manage your time and 
 - **自动开始休息**：番茄钟结束后是否自动开始休息
 - **自动开始番茄钟**：休息结束后是否自动开始下一个番茄钟
 - **使用系统通知**：启用后即使 Obsidian 窗口不在前台也能收到系统级通知提醒
+- **休息时播放音乐**：在休息时段播放舒缓音乐
+- **音乐音量**：设置休息音乐的音量大小
+- **自定义音乐**：从您的库中选择音频文件作为休息音乐 (支持 mp3, wav, ogg, m4a, flac 格式)
 
 ### 命令
 

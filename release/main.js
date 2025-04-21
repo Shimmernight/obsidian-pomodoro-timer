@@ -54,11 +54,15 @@ var DEFAULT_SETTINGS = {
   longBreakInterval: 4,
   autoStartBreaks: true,
   autoStartPomodoros: true,
-  useSystemNotifications: false
+  useSystemNotifications: false,
+  playMusicDuringBreak: false,
+  musicVolume: 0.5,
+  customMusicPath: ""
 };
 var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
   constructor() {
     super(...arguments);
+    this.audioPlayer = null;
     this.timer = 0;
     this.timeLeft = 0;
     this.isRunning = false;
@@ -98,10 +102,12 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
       if (this.settings.useSystemNotifications) {
         this.requestNotificationPermission();
       }
+      this.createAudioPlayer();
     });
   }
   onunload() {
     this.clearTimer();
+    this.stopMusic();
   }
   requestNotificationPermission() {
     if ("Notification" in window && Notification.permission !== "granted") {
@@ -116,6 +122,67 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
         body,
         icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
       });
+    }
+  }
+  createAudioPlayer() {
+    if (!this.audioPlayer) {
+      this.audioPlayer = new Audio();
+      this.audioPlayer.loop = true;
+      this.audioPlayer.volume = this.settings.musicVolume;
+    }
+  }
+  playMusic() {
+    return __async(this, null, function* () {
+      if (!this.settings.playMusicDuringBreak || !this.audioPlayer)
+        return;
+      try {
+        if (this.settings.customMusicPath) {
+          const normalizedPath = (0, import_obsidian.normalizePath)(this.settings.customMusicPath);
+          const file = this.app.vault.getAbstractFileByPath(normalizedPath);
+          if (file && file instanceof import_obsidian.TFile) {
+            const fileData = yield this.app.vault.readBinary(file);
+            const blob = new Blob([fileData], { type: this.getMimeType(normalizedPath) });
+            const url = URL.createObjectURL(blob);
+            this.audioPlayer.src = url;
+          } else {
+            this.audioPlayer.src = "https://soundbible.com/grab.php?id=2197&type=mp3";
+            new import_obsidian.Notice("\u672A\u627E\u5230\u81EA\u5B9A\u4E49\u97F3\u4E50\u6587\u4EF6\uFF0C\u4F7F\u7528\u9ED8\u8BA4\u97F3\u4E50");
+          }
+        } else {
+          this.audioPlayer.src = "https://soundbible.com/grab.php?id=2197&type=mp3";
+        }
+        yield this.audioPlayer.play();
+      } catch (error) {
+        console.error("\u64AD\u653E\u97F3\u4E50\u5931\u8D25:", error);
+        new import_obsidian.Notice("\u64AD\u653E\u97F3\u4E50\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u97F3\u4E50\u6587\u4EF6\u8BBE\u7F6E");
+      }
+    });
+  }
+  getMimeType(filePath) {
+    var _a;
+    const ext = (_a = filePath.split(".").pop()) == null ? void 0 : _a.toLowerCase();
+    switch (ext) {
+      case "mp3":
+        return "audio/mpeg";
+      case "wav":
+        return "audio/wav";
+      case "ogg":
+        return "audio/ogg";
+      case "m4a":
+        return "audio/mp4";
+      case "flac":
+        return "audio/flac";
+      default:
+        return "audio/mpeg";
+    }
+  }
+  stopMusic() {
+    if (this.audioPlayer) {
+      this.audioPlayer.pause();
+      this.audioPlayer.currentTime = 0;
+      if (this.audioPlayer.src.startsWith("blob:")) {
+        URL.revokeObjectURL(this.audioPlayer.src);
+      }
     }
   }
   loadStyles() {
@@ -159,6 +226,9 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
   saveSettings() {
     return __async(this, null, function* () {
       yield this.saveData(this.settings);
+      if (this.audioPlayer) {
+        this.audioPlayer.volume = this.settings.musicVolume;
+      }
     });
   }
   startPomodoro() {
@@ -177,6 +247,9 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
         }
       }
     }
+    if (!this.isWorkMode && this.settings.playMusicDuringBreak) {
+      this.playMusic();
+    }
     this.timer = window.setInterval(() => this.updateTimer(), 1e3);
     this.updateStatusBar();
   }
@@ -184,6 +257,9 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
     this.isRunning = false;
     this.statusBarEl.removeClass("running");
     this.clearTimer();
+    if (!this.isWorkMode) {
+      this.stopMusic();
+    }
     this.updateStatusBar();
   }
   resetPomodoro() {
@@ -191,6 +267,7 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
     this.isRunning = false;
     this.statusBarEl.removeClass("running");
     this.timeLeft = 0;
+    this.stopMusic();
     this.updateStatusBar();
   }
   clearTimer() {
@@ -225,6 +302,7 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
         }
       } else {
         new import_obsidian.Notice("\u4F11\u606F\u7ED3\u675F\uFF01");
+        this.stopMusic();
         this.sendSystemNotification("\u4F11\u606F\u7ED3\u675F", "\u4F11\u606F\u65F6\u95F4\u7ED3\u675F\uFF0C\u51C6\u5907\u5F00\u59CB\u65B0\u7684\u5DE5\u4F5C\u5468\u671F\uFF01");
         this.isWorkMode = true;
         this.isRunning = false;
@@ -294,5 +372,71 @@ var PomodoroSettingTab = class extends import_obsidian.PluginSettingTab {
         this.plugin.requestNotificationPermission();
       }
     })));
+    containerEl.createEl("h3", { text: "\u4F11\u606F\u97F3\u4E50\u8BBE\u7F6E" });
+    new import_obsidian.Setting(containerEl).setName("\u4F11\u606F\u65F6\u64AD\u653E\u97F3\u4E50").setDesc("\u5728\u4F11\u606F\u65F6\u6BB5\u64AD\u653E\u8212\u7F13\u97F3\u4E50").addToggle((toggle) => toggle.setValue(this.plugin.settings.playMusicDuringBreak).onChange((value) => __async(this, null, function* () {
+      this.plugin.settings.playMusicDuringBreak = value;
+      yield this.plugin.saveSettings();
+    })));
+    new import_obsidian.Setting(containerEl).setName("\u97F3\u4E50\u97F3\u91CF").setDesc("\u8BBE\u7F6E\u4F11\u606F\u97F3\u4E50\u7684\u97F3\u91CF").addSlider((slider) => slider.setLimits(0, 1, 0.1).setValue(this.plugin.settings.musicVolume).setDynamicTooltip().onChange((value) => __async(this, null, function* () {
+      this.plugin.settings.musicVolume = value;
+      yield this.plugin.saveSettings();
+    })));
+    new import_obsidian.Setting(containerEl).setName("\u81EA\u5B9A\u4E49\u97F3\u4E50").setDesc("\u9009\u62E9\u5E93\u4E2D\u7684\u97F3\u4E50\u6587\u4EF6\u4F5C\u4E3A\u4F11\u606F\u97F3\u4E50 (\u652F\u6301 mp3, wav, ogg, m4a, flac \u683C\u5F0F)").addText((text) => {
+      text.setValue(this.plugin.settings.customMusicPath).setPlaceholder("\u4F8B\u5982: music/relax.mp3").onChange((value) => __async(this, null, function* () {
+        this.plugin.settings.customMusicPath = value;
+        yield this.plugin.saveSettings();
+      }));
+      this.addFileSelectionButton(containerEl, text);
+      return text;
+    });
+  }
+  addFileSelectionButton(containerEl, textComponent) {
+    const buttonEl = containerEl.createEl("button", {
+      text: "\u9009\u62E9\u6587\u4EF6",
+      cls: "mod-cta"
+    });
+    buttonEl.addEventListener("click", () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "audio/*";
+      input.click();
+      input.onchange = () => __async(this, null, function* () {
+        const files = input.files;
+        if (files && files.length > 0) {
+          const file = files[0];
+          const validTypes = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/flac"];
+          if (!validTypes.includes(file.type)) {
+            new import_obsidian.Notice("\u4E0D\u652F\u6301\u7684\u97F3\u9891\u683C\u5F0F\uFF0C\u8BF7\u4F7F\u7528mp3\u3001wav\u3001ogg\u3001m4a\u6216flac\u683C\u5F0F");
+            return;
+          }
+          try {
+            const fileName = file.name;
+            const filePath = `music/${fileName}`;
+            if (!this.app.vault.getAbstractFileByPath("music")) {
+              yield this.app.vault.createFolder("music");
+            }
+            const buffer = yield file.arrayBuffer();
+            try {
+              const existingFile = this.app.vault.getAbstractFileByPath(filePath);
+              if (existingFile && existingFile instanceof import_obsidian.TFile) {
+                yield this.app.vault.modifyBinary(existingFile, buffer);
+              } else {
+                yield this.app.vault.createBinary(filePath, buffer);
+              }
+              this.plugin.settings.customMusicPath = filePath;
+              yield this.plugin.saveSettings();
+              textComponent.setValue(filePath);
+              new import_obsidian.Notice(`\u97F3\u4E50\u6587\u4EF6\u5DF2\u4FDD\u5B58\u81F3: ${filePath}`);
+            } catch (err) {
+              console.error("\u4FDD\u5B58\u97F3\u4E50\u6587\u4EF6\u5931\u8D25:", err);
+              new import_obsidian.Notice("\u4FDD\u5B58\u97F3\u4E50\u6587\u4EF6\u5931\u8D25");
+            }
+          } catch (err) {
+            console.error("\u8BFB\u53D6\u97F3\u4E50\u6587\u4EF6\u5931\u8D25:", err);
+            new import_obsidian.Notice("\u8BFB\u53D6\u97F3\u4E50\u6587\u4EF6\u5931\u8D25");
+          }
+        }
+      });
+    });
   }
 };

@@ -1,9 +1,9 @@
 {
   "id": "pomodoro-timer-shimmer",
   "name": "番茄钟",
-  "version": "1.1.1",
+  "version": "1.2.1",
   "minAppVersion": "0.15.0",
-  "description": "一个简单的番茄钟插件，帮助你提高工作效率，支持系统级通知提醒",
+  "description": "一个简单的番茄钟插件，帮助你提高工作效率，支持系统级通知提醒和休息音乐（支持mp3/wav/ogg/m4a/flac）",
   "author": "shimmernight",
   "authorUrl": "https://github.com/shimmernight",
   "fundingUrl": "",

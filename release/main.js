@@ -53,7 +53,8 @@ var DEFAULT_SETTINGS = {
   longBreakDuration: 15,
   longBreakInterval: 4,
   autoStartBreaks: true,
-  autoStartPomodoros: true
+  autoStartPomodoros: true,
+  useSystemNotifications: false
 };
 var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
   constructor() {
@@ -94,10 +95,28 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
           this.startPomodoro();
         }
       });
+      if (this.settings.useSystemNotifications) {
+        this.requestNotificationPermission();
+      }
     });
   }
   onunload() {
     this.clearTimer();
+  }
+  requestNotificationPermission() {
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  }
+  sendSystemNotification(title, body) {
+    if (!this.settings.useSystemNotifications)
+      return;
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, {
+        body,
+        icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
+      });
+    }
   }
   loadStyles() {
     document.head.appendChild(Object.assign(document.createElement("style"), {
@@ -189,6 +208,7 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
       if (this.isWorkMode) {
         this.pomodoroCount++;
         new import_obsidian.Notice(`\u{1F345} \u756A\u8304\u949F\u5B8C\u6210\uFF01\u4F11\u606F\u4E00\u4E0B\u5427`);
+        this.sendSystemNotification("\u756A\u8304\u949F\u5B8C\u6210", "\u5DE5\u4F5C\u65F6\u95F4\u7ED3\u675F\uFF0C\u73B0\u5728\u53EF\u4EE5\u4F11\u606F\u4E00\u4E0B\u4E86\uFF01");
         this.isWorkMode = false;
         if (this.settings.autoStartBreaks) {
           if (this.pomodoroCount % this.settings.longBreakInterval === 0) {
@@ -205,6 +225,7 @@ var PomodoroTimerPlugin = class extends import_obsidian.Plugin {
         }
       } else {
         new import_obsidian.Notice("\u4F11\u606F\u7ED3\u675F\uFF01");
+        this.sendSystemNotification("\u4F11\u606F\u7ED3\u675F", "\u4F11\u606F\u65F6\u95F4\u7ED3\u675F\uFF0C\u51C6\u5907\u5F00\u59CB\u65B0\u7684\u5DE5\u4F5C\u5468\u671F\uFF01");
         this.isWorkMode = true;
         if (this.settings.autoStartPomodoros) {
           this.timeLeft = this.settings.workDuration * 60;
@@ -265,6 +286,13 @@ var PomodoroSettingTab = class extends import_obsidian.PluginSettingTab {
     new import_obsidian.Setting(containerEl).setName("\u81EA\u52A8\u5F00\u59CB\u756A\u8304\u949F").setDesc("\u4F11\u606F\u7ED3\u675F\u540E\u81EA\u52A8\u5F00\u59CB\u4E0B\u4E00\u4E2A\u756A\u8304\u949F").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoStartPomodoros).onChange((value) => __async(this, null, function* () {
       this.plugin.settings.autoStartPomodoros = value;
       yield this.plugin.saveSettings();
+    })));
+    new import_obsidian.Setting(containerEl).setName("\u4F7F\u7528\u7CFB\u7EDF\u901A\u77E5").setDesc("\u5373\u4F7F\u4E0D\u5728Obsidian\u7A97\u53E3\u4E5F\u80FD\u6536\u5230\u901A\u77E5\u63D0\u9192").addToggle((toggle) => toggle.setValue(this.plugin.settings.useSystemNotifications).onChange((value) => __async(this, null, function* () {
+      this.plugin.settings.useSystemNotifications = value;
+      yield this.plugin.saveSettings();
+      if (value) {
+        this.plugin.requestNotificationPermission();
+      }
     })));
   }
 };

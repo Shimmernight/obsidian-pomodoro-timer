@@ -7,6 +7,7 @@ interface PomodoroSettings {
 	longBreakInterval: number;
 	autoStartBreaks: boolean;
 	autoStartPomodoros: boolean;
+	useSystemNotifications: boolean;
 }
 
 const DEFAULT_SETTINGS: PomodoroSettings = {
@@ -15,7 +16,8 @@ const DEFAULT_SETTINGS: PomodoroSettings = {
 	longBreakDuration: 15,
 	longBreakInterval: 4,
 	autoStartBreaks: true,
-	autoStartPomodoros: true
+	autoStartPomodoros: true,
+	useSystemNotifications: false
 }
 
 export default class PomodoroTimerPlugin extends Plugin {
@@ -69,10 +71,34 @@ export default class PomodoroTimerPlugin extends Plugin {
 				this.startPomodoro();
 			}
 		});
+
+		// 请求通知权限（如果用户已启用系统通知）
+		if (this.settings.useSystemNotifications) {
+			this.requestNotificationPermission();
+		}
 	}
 	
 	onunload() {
 		this.clearTimer();
+	}
+	
+	// 请求系统通知权限
+	requestNotificationPermission() {
+		if ("Notification" in window && Notification.permission !== "granted") {
+			Notification.requestPermission();
+		}
+	}
+	
+	// 发送系统通知
+	sendSystemNotification(title: string, body: string) {
+		if (!this.settings.useSystemNotifications) return;
+		
+		if ("Notification" in window && Notification.permission === "granted") {
+			new Notification(title, {
+				body: body,
+				icon: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
+			});
+		}
 	}
 	
 	loadStyles() {
@@ -176,6 +202,13 @@ export default class PomodoroTimerPlugin extends Plugin {
 				// 完成一个番茄钟
 				this.pomodoroCount++;
 				new Notice(`🍅 番茄钟完成！休息一下吧`);
+				
+				// 发送系统通知
+				this.sendSystemNotification(
+					"番茄钟完成", 
+					"工作时间结束，现在可以休息一下了！"
+				);
+				
 				this.isWorkMode = false;
 				
 				// 是否自动开始休息
@@ -195,6 +228,13 @@ export default class PomodoroTimerPlugin extends Plugin {
 			} else {
 				// 休息结束
 				new Notice('休息结束！');
+				
+				// 发送系统通知
+				this.sendSystemNotification(
+					"休息结束", 
+					"休息时间结束，准备开始新的工作周期！"
+				);
+				
 				this.isWorkMode = true;
 				
 				// 是否自动开始下一个番茄钟
@@ -303,6 +343,21 @@ class PomodoroSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.autoStartPomodoros = value;
 					await this.plugin.saveSettings();
+				}));
+				
+		new Setting(containerEl)
+			.setName('使用系统通知')
+			.setDesc('即使不在Obsidian窗口也能收到通知提醒')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.useSystemNotifications)
+				.onChange(async (value) => {
+					this.plugin.settings.useSystemNotifications = value;
+					await this.plugin.saveSettings();
+					
+					// 如果启用，请求通知权限
+					if (value) {
+						this.plugin.requestNotificationPermission();
+					}
 				}));
 	}
 } 

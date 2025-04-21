@@ -18,6 +18,7 @@ A simple Pomodoro Timer plugin for Obsidian that helps you manage your time and 
 - Start/pause timer by clicking the status bar icon
 - Support for customizable long break intervals
 - Option to automatically start breaks and next Pomodoro sessions
+- System-level notifications that work even when Obsidian is not in focus
 
 ### Installation
 
@@ -51,6 +52,7 @@ A simple Pomodoro Timer plugin for Obsidian that helps you manage your time and 
 - **Long Break Interval**: Number of Pomodoros to complete before a long break
 - **Auto Start Breaks**: Automatically start breaks after Pomodoro sessions
 - **Auto Start Pomodoros**: Automatically start new Pomodoro sessions after breaks
+- **Use System Notifications**: Receive system-level notifications even when Obsidian window is not in focus
 
 ### Commands
 
@@ -74,6 +76,7 @@ A simple Pomodoro Timer plugin for Obsidian that helps you manage your time and 
 - 可以通过点击状态栏快速开始/暂停番茄钟
 - 支持自定义长休息间隔（每完成几个番茄钟后进行长休息）
 - 支持设置是否自动开始休息和下一个番茄钟
+- 支持系统级通知，即使 Obsidian 窗口不在前台也能收到提醒
 
 ### 安装方法
 
@@ -107,6 +110,7 @@ A simple Pomodoro Timer plugin for Obsidian that helps you manage your time and 
 - **长休息间隔**：完成多少个番茄钟后进行长休息
 - **自动开始休息**：番茄钟结束后是否自动开始休息
 - **自动开始番茄钟**：休息结束后是否自动开始下一个番茄钟
+- **使用系统通知**：启用后即使 Obsidian 窗口不在前台也能收到系统级通知提醒
 
 ### 命令
 
